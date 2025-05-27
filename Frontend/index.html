@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Payslip Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+   :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #3f37c9;
+            --accent: #4895ef;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --warning: #f8961e;
+            --info: #560bad;
+            --border-radius: 12px;
+            --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f7ff;
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .card-header h1 {
+            color: var(--primary);
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .card-header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .card-header::after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: var(--accent);
+            margin: 15px auto 0;
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 2px solid #e9ecef;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-download {
+            background: var(--success);
+            margin-top: 20px;
+        }
+
+        .btn-download:hover {
+            background: #3ab0d6;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .payslip-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .section-title {
+            display: flex;
+            color: white;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .section-title i {
+            color: white;
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .detail-value {
+            font-weight: 600;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-top: 30px;
+        }
+
+        .summary-section .detail-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .summary-section .detail-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .summary-section .detail-value {
+            color: white;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .card-header h1 {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animated {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        .payslip-section { display: none; }
+        .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .section-title { color: #4361ee; }
+        .error-message { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card animated">
+            <div class="card-header">
+                <h1><i class="fas fa-file-invoice-dollar"></i> Employee Payslip</h1>
+                <p>Enter details to view your payslip information</p>
+            </div>
+
+            <form id="payslipForm">
+                <div class="form-group">
+                    <label for="empName">Employee Name</label>
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="empName" name="empName" class="form-control" required 
+                               pattern="^[A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*$" 
+                               title="Name must start with capital letters and contain only letters and single spaces." 
+                               maxlength="50" placeholder="John Doe">
+                    </div>
+                    <small class="error-message" id="empNameError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="empid">Employee ID</label>
+                    <div class="input-icon">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="empid" name="empid" class="form-control" required 
+                               pattern="^ATS0(?!000)\d{3}$" 
+                               title="Employee ID must start with ATS0 followed by 3 numbers (e.g., ATS0123)" 
+                               maxlength="7" placeholder="ATS0123">
+                    </div>
+                    <small class="error-message" id="empIdError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="month">Pay Period</label>
+                    <div class="input-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                        <input type="month" id="month" name="month" class="form-control" required
+                               min="2005-01" max="2025-05">
+                    </div>
+                    <small class="error-message" id="monthError"></small>
+                </div>
+
+                <button type="submit" class="btn"><i class="fas fa-search"></i> View Payslip</button>
+            </form>
+
+            <div id="payslipContent" class="payslip-section animated">
+                <div class="employee-details">
+                    <h3 class="section-title"><i class="fas fa-user-tie"></i> Employee Details</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Employee Name:</span>
+                        <span class="detail-value" id="displayName">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Employee ID:</span>
+                        <span class="detail-value" id="displayId">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Department:</span>
+                        <span class="detail-value" id="displayDept">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Pay Period:</span>
+                        <span class="detail-value" id="displayPeriod">-</span>
+                    </div>
+                </div>
+
+                <div class="earnings-section">
+                    <h3 class="section-title"><i class="fas fa-money-bill-wave"></i> Earnings</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Basic Salary:</span>
+                        <span class="detail-value" id="basicSalary">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">HRA:</span>
+                        <span class="detail-value" id="hra">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Special Allowance:</span>
+                        <span class="detail-value" id="specialAllowance">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Bonus:</span>
+                        <span class="detail-value" id="bonus">₹0.00</span>
+                    </div>
+                </div>
+
+                <div class="deductions-section">
+                    <h3 class="section-title"><i class="fas fa-minus-circle"></i> Deductions</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Income Tax:</span>
+                        <span class="detail-value" id="incomeTax">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Provident Fund:</span>
+                        <span class="detail-value" id="pf">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Health Insurance:</span>
+                        <span class="detail-value" id="healthInsurance">₹0.00</span>
+                    </div>
+                </div>
+
+                <div class="summary-section">
+                    <h3 class="section-title" style="color: white;"><i class="fas fa-calculator"></i> Summary</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Earnings:</span>
+                        <span class="detail-value" id="totalEarnings">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Deductions:</span>
+                        <span class="detail-value" id="totalDeductions">₹0.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Net Pay:</span>
+                        <span class="detail-value" id="netPay">₹0.00</span>
+                    </div>
+                </div>
+
+                <button id="downloadBtn" class="btn btn-download"><i class="fas fa-download"></i> Download Payslip (PDF)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const payslipForm = document.getElementById("payslipForm");
+            const payslipContent = document.getElementById("payslipContent");
+            const monthInput = document.getElementById("month");
+            const downloadBtn = document.getElementById("downloadBtn");
+            let currentPayslip = null;
+
+            const selectedPayrollMonth = sessionStorage.getItem("payrollMonth");
+            if (selectedPayrollMonth) {
+                monthInput.value = selectedPayrollMonth;
+                validateMonth();
+            }
+
+            monthInput.addEventListener('input', function() {
+                sessionStorage.setItem("payrollMonth", this.value);
+                validateMonth();
+            });
+            document.getElementById("empName").addEventListener('input', validateName);
+            document.getElementById("empid").addEventListener('input', validateId);
+
+            downloadBtn.addEventListener('click', generatePDF);
+
+            function validateName() {
+                const empName = document.getElementById("empName").value;
+                const errorElement = document.getElementById("empNameError");
+
+                if (!empName.match(/^[A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*$/)) {
+                    errorElement.textContent = "Name must start with capital letters and contain only letters and single spaces.";
+                    return false;
+                }
+                errorElement.textContent = "";
+                return true;
+            }
+
+            function validateId() {
+                const empId = document.getElementById("empid").value;
+                const errorElement = document.getElementById("empIdError");
+
+                if (!empId.match(/^ATS0(?!000)\d{3}$/)) {
+                    errorElement.textContent = "Invalid format. Must be ATS0 followed by 3 numbers (e.g., ATS0123)";
+                    return false;
+                }
+                errorElement.textContent = "";
+                return true;
+            }
+
+            function validateMonth() {
+                const monthValue = monthInput.value;
+                const errorElement = document.getElementById("monthError");
+
+                if (!monthValue) {
+                    errorElement.textContent = "Month is required";
+                    return false;
+                }
+
+                const selectedDate = new Date(monthValue + '-01');
+                const minDate = new Date("2005-01-01");
+                const maxDate = new Date("2025-05-01");
+
+                if (selectedDate < minDate) {
+                    errorElement.textContent = "Date cannot be before January 2005";
+                    return false;
+                }
+
+                if (selectedDate > maxDate) {
+                    errorElement.textContent = "Date cannot be after May 2025";
+                    return false;
+                }
+
+                errorElement.textContent = "";
+                return true;
+            }
+
+            function displayPayslip(payslip) {
+                currentPayslip = payslip;
+
+                const monthYear = new Date(payslip.timestamp).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                document.getElementById("displayName").textContent = payslip.employee_name;
+                document.getElementById("displayId").textContent = payslip.employee_id;
+                document.getElementById("displayDept").textContent = payslip.department;
+                document.getElementById("displayPeriod").textContent = monthYear;
+
+                document.getElementById("basicSalary").textContent = `₹${payslip.earnings.basicSalary.toFixed(2)}`;
+                document.getElementById("hra").textContent = `₹${payslip.earnings.hra.toFixed(2)}`;
+                document.getElementById("specialAllowance").textContent = `₹${payslip.earnings.specialAllowance.toFixed(2)}`;
+                document.getElementById("bonus").textContent = `₹${payslip.earnings.bonus.toFixed(2)}`;
+
+                document.getElementById("incomeTax").textContent = `₹${payslip.deductions.incomeTaxDeduction.toFixed(2)}`;
+                document.getElementById("pf").textContent = `₹${payslip.deductions.pf.toFixed(2)}`;
+                document.getElementById("healthInsurance").textContent = `₹${payslip.deductions.healthInsurance.toFixed(2)}`;
+
+                document.getElementById("totalEarnings").textContent = `₹${payslip.totals.totalEarnings.toFixed(2)}`;
+                document.getElementById("totalDeductions").textContent = `₹${payslip.totals.totalDeductions.toFixed(2)}`;
+                document.getElementById("netPay").textContent = `₹${payslip.totals.netPay.toFixed(2)}`;
+
+                payslipContent.style.display = "block";
+            }
+
+            function generatePDF() {
+                if (!currentPayslip) {
+                    alert("No payslip data available to download");
+                    return;
+                }
+
+                const doc = new jsPDF();
+                const monthYear = new Date(currentPayslip.timestamp).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                doc.setFontSize(20);
+                doc.setTextColor(67, 97, 238);
+                doc.text('EMPLOYEE PAYSLIP', 105, 20, { align: 'center' });
+                doc.setFontSize(12);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Pay Period: ${monthYear}`, 105, 30, { align: 'center' });
+
+                doc.setDrawColor(67, 97, 238);
+                doc.setLineWidth(0.5);
+                doc.line(20, 35, 190, 35);
+
+                doc.setFontSize(14);
+                doc.setTextColor(67, 97, 238);
+                doc.text('Employee Details', 20, 45);
+
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Name: ${currentPayslip.employee_name}`, 20, 55);
+                doc.text(`Employee ID: ${currentPayslip.employee_id}`, 20, 65);
+                doc.text(`Department: ${currentPayslip.department}`, 20, 75);
+
+                doc.setFontSize(14);
+                doc.setTextColor(67, 97, 238);
+                doc.text('Earnings', 20, 90);
+
+                const earningsData = [
+                    ['Basic Salary', `₹${currentPayslip.earnings.basicSalary.toFixed(2)}`],
+                    ['HRA', `₹${currentPayslip.earnings.hra.toFixed(2)}`],
+                    ['Special Allowance', `₹${currentPayslip.earnings.specialAllowance.toFixed(2)}`],
+                    ['Bonus', `₹${currentPayslip.earnings.bonus.toFixed(2)}`]
+                ];
+
+                doc.autoTable({
+                    startY: 95,
+                    head: [['Description', 'Amount']],
+                    body: earningsData,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [67, 97, 238],
+                        textColor: [255, 255, 255]
+                    },
+                    margin: { left: 20 }
+                });
+
+                doc.setFontSize(14);
+                doc.setTextColor(67, 97, 238);
+                doc.text('Deductions', 20, doc.autoTable.previous.finalY + 15);
+
+                const deductionsData = [
+                    ['Income Tax', `₹${currentPayslip.deductions.incomeTaxDeduction.toFixed(2)}`],
+                    ['Provident Fund', `₹${currentPayslip.deductions.pf.toFixed(2)}`],
+                    ['Health Insurance', `₹${currentPayslip.deductions.healthInsurance.toFixed(2)}`]
+                ];
+
+                doc.autoTable({
+                    startY: doc.autoTable.previous.finalY + 20,
+                    head: [['Description', 'Amount']],
+                    body: deductionsData,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [67, 97, 238],
+                        textColor: [255, 255, 255]
+                    },
+                    margin: { left: 20 }
+                });
+
+                doc.setFontSize(14);
+                doc.setTextColor(67, 97, 238);
+                doc.text('Summary', 20, doc.autoTable.previous.finalY + 15);
+
+                const summaryData = [
+                    ['Total Earnings', `₹${currentPayslip.totals.totalEarnings.toFixed(2)}`],
+                    ['Total Deductions', `₹${currentPayslip.totals.totalDeductions.toFixed(2)}`],
+                    ['Net Pay', `₹${currentPayslip.totals.netPay.toFixed(2)}`]
+                ];
+
+                doc.autoTable({
+                    startY: doc.autoTable.previous.finalY + 20,
+                    body: summaryData,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [67, 97, 238],
+                        textColor: [255, 255, 255]
+                    },
+                    margin: { left: 20 },
+                    styles: {
+                        fontSize: 12,
+                        cellPadding: 6,
+                        fillColor: [255, 255, 255]
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold' },
+                        1: { fontStyle: 'bold', halign: 'right' }
+                    }
+                });
+
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('This is a computer generated payslip. No signature required.', 105, doc.autoTable.previous.finalY + 15, { align: 'center' });
+                doc.text(`Generated on: ${new Date().toLocaleString()}`, 105, doc.autoTable.previous.finalY + 20, { align: 'center' });
+
+                doc.save(`Payslip_${currentPayslip.employee_id}_${monthYear.replace(' ', '_')}.pdf`);
+            }
+
+            payslipForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                document.getElementById("empNameError").textContent = "";
+                document.getElementById("empIdError").textContent = "";
+                document.getElementById("monthError").textContent = "";
+
+                const isNameValid = validateName();
+                const isIdValid = validateId();
+                const isMonthValid = validateMonth();
+
+                if (!isNameValid || !isIdValid || !isMonthValid) {
+                    return;
+                }
+
+                const empName = document.getElementById("empName").value;
+                const empId = document.getElementById("empid").value;
+                const monthValue = monthInput.value;
+
+                try {
+                    const response = await fetch(`http://localhost:3000/api/payslips/${empId}/${monthValue}`);
+                    if (!response.ok) {
+                        throw new Error('Payslip not found');
+                    }
+                    const selectedPayslip = await response.json();
+                    displayPayslip(selectedPayslip);
+                } catch (err) {
+                    alert("No payslip found for the specified employee and month.");
+                    payslipContent.style.display = "none";
+                }
+            });
+        });
+    </script>
+</body>
+</html>

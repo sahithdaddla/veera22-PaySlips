@@ -1,0 +1,147 @@
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const app = express();
+const port = 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// PostgreSQL connection
+const pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'payroll_db',
+    password: 'Veera@0134',
+    port: 5432,
+});
+
+// Allowed departments
+const ALLOWED_DEPARTMENTS = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Engineering'];
+
+// Create payslips table
+async function initializeDatabase() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS payslips (
+                id SERIAL PRIMARY KEY,
+                employee_name VARCHAR(50) NOT NULL,
+                employee_id VARCHAR(7) NOT NULL,
+                department VARCHAR(30) NOT NULL,
+                earnings JSONB NOT NULL,
+                deductions JSONB NOT NULL,
+                totals JSONB NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL,
+                CONSTRAINT unique_employee_month UNIQUE (employee_id, timestamp)
+            );
+        `);
+        console.log('Database initialized');
+    } catch (err) {
+        console.error('Error initializing database:', err);
+    }
+}
+
+initializeDatabase();
+
+// API Endpoints
+
+// Get all payslips (with optional department filter)
+app.get('/api/payslips', async (req, res) => {
+    const { department } = req.query;
+    try {
+        let query = 'SELECT * FROM payslips ORDER BY timestamp DESC';
+        let params = [];
+        if (department && ALLOWED_DEPARTMENTS.includes(department)) {
+            query = 'SELECT * FROM payslips WHERE department = $1 ORDER BY timestamp DESC';
+            params = [department];
+        }
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get payslip by employee ID and month
+app.get('/api/payslips/:employeeId/:month', async (req, res) => {
+    const { employeeId, month } = req.params;
+    try {
+        const startDate = new Date(month + '-01');
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        
+        const result = await pool.query(
+            'SELECT * FROM payslips WHERE employee_id = $1 AND timestamp >= $2 AND timestamp < $3',
+            [employeeId, startDate, endDate]
+        );
+        
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.status(404).json({ error: 'Payslip not found' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create a new payslip
+app.post('/api/payslips', async (req, res) => {
+    const { employeeName, employeeId, department, earnings, deductions, totals, timestamp } = req.body;
+    
+    // Validate department
+    if (!ALLOWED_DEPARTMENTS.includes(department)) {
+        return res.status(400).json({ error: `Invalid department. Must be one of: ${ALLOWED_DEPARTMENTS.join(', ')}` });
+    }
+
+    // Validate timestamp (not in the future)
+    const selectedDate = new Date(timestamp);
+    const currentDate = new Date();
+    if (selectedDate > currentDate) {
+        return res.status(400).json({ error: 'Payslip date cannot be in the future' });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO payslips (employee_name, employee_id, department, earnings, deductions, totals, timestamp)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [employeeName, employeeId, department, earnings, deductions, totals, timestamp]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get PF records for a specific month (with optional department filter)
+app.get('/api/pf-records/:month', async (req, res) => {
+    const { month } = req.params;
+    const { department } = req.query;
+    try {
+        const startDate = new Date(month + '-01');
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        
+        let query = 'SELECT employee_name, employee_id, deductions->>\'pf\' as pf FROM payslips WHERE timestamp >= $1 AND timestamp < $2';
+        let params = [startDate, endDate];
+        
+        if (department && ALLOWED_DEPARTMENTS.includes(department)) {
+            query += ' AND department = $3';
+            params.push(department);
+        }
+        
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
