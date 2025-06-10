@@ -7,8 +7,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-   :root {
+        :root {
             --primary: #4361ee;
             --primary-dark: #3a56d4;
             --secondary: #3f37c9;
@@ -238,7 +239,6 @@
             }
         }
 
-        /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -387,6 +387,60 @@
             const downloadBtn = document.getElementById("downloadBtn");
             let currentPayslip = null;
 
+            // Logo setup
+            const logoImg = new Image();
+            logoImg.crossOrigin = 'Anonymous';
+            logoImg.src = './logo.png';
+
+            // Number to words conversion
+            function numberToWords(num) {
+                if (num === 0) return 'Zero Only';
+                if (num > 9999999) return 'Amount too large';
+
+                const ones = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+                const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+                function convertHundreds(n) {
+                    let str = '';
+                    if (n > 99) {
+                        str += ones[Math.floor(n / 100)] + ' Hundred';
+                        n %= 100;
+                        if (n > 0) str += ' and ';
+                    }
+                    if (n > 19) {
+                        str += tens[Math.floor(n / 10)];
+                        n %= 10;
+                        if (n > 0) str += ' ' + ones[n];
+                    } else if (n > 9) {
+                        str += teens[n - 10];
+                    } else if (n > 0) {
+                        str += ones[n];
+                    }
+                    return str;
+                }
+
+                let str = '';
+                let lakh = Math.floor(num / 100000);
+                num %= 100000;
+                let thousand = Math.floor(num / 1000);
+                num %= 1000;
+
+                if (lakh > 0) {
+                    str += convertHundreds(lakh) + ' Lakh';
+                    if (thousand > 0 || num > 0) str += ' ';
+                }
+                if (thousand > 0) {
+                    str += convertHundreds(thousand) + ' Thousand';
+                    if (num > 0) str += ' ';
+                }
+                if (num > 0) {
+                    str += convertHundreds(num);
+                }
+
+                return str.trim() + ' Only';
+            }
+
             const selectedPayrollMonth = sessionStorage.getItem("payrollMonth");
             if (selectedPayrollMonth) {
                 monthInput.value = selectedPayrollMonth;
@@ -479,117 +533,170 @@
                 payslipContent.style.display = "block";
             }
 
-            function generatePDF() {
+            async function generatePDF() {
                 if (!currentPayslip) {
                     alert("No payslip data available to download");
                     return;
                 }
 
-                const doc = new jsPDF();
+                if (!jsPDF || !window.html2canvas) {
+                    alert("Required libraries (jsPDF or html2canvas) not loaded");
+                    return;
+                }
+
                 const monthYear = new Date(currentPayslip.timestamp).toLocaleString('default', { month: 'long', year: 'numeric' });
+                const payslipId = `${currentPayslip.employee_id}_${monthYear.replace(' ', '_')}`;
+                const totalEarnings = currentPayslip.totals.totalEarnings;
+                const totalDeductions = currentPayslip.totals.totalDeductions;
+                const netSalary = currentPayslip.totals.netPay;
+                const netSalaryWords = numberToWords(Math.floor(netSalary));
+                const otherAllowance = (currentPayslip.earnings.specialAllowance || 0) + (currentPayslip.earnings.bonus || 0);
 
-                doc.setFontSize(20);
-                doc.setTextColor(67, 97, 238);
-                doc.text('EMPLOYEE PAYSLIP', 105, 20, { align: 'center' });
-                doc.setFontSize(12);
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Pay Period: ${monthYear}`, 105, 30, { align: 'center' });
+                const docContent = document.createElement('div');
+                docContent.className = 'pdf-content';
+                docContent.style.padding = '10mm';
+                docContent.style.width = '210mm';
+                docContent.style.backgroundColor = '#fff';
+                docContent.style.boxSizing = 'border-box';
+                docContent.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5mm;">
+                        <div>
+                            <p style="font-weight: bold; font-size: 9pt; margin: 0;">Astrolite Tech Solutions Pvt Ltd</p>
+                            <p style="font-size: 7pt; margin: 1mm 0 0;">Plot No 65, Flat No 201, 2nd Floor,</p>
+                            <p style="font-size: 7pt; margin: 0;">Siddivinayaka Nagar, Survey of India,</p>
+                            <p style="font-size: 7pt; margin: 0;">Madhapur, Hyderabad - 500081</p>
+                        </div>
+                        <img id="company-logo" src="${logoImg.src}" style="height: 15mm; max-width: 35mm;" alt="Company Logo">
+                    </div>
+                    <hr style="border: 0.2mm solid #ccc; margin: 3mm 0;">
+                    <h2 style="text-align: center; font-size: 12pt; color: #333; margin: 0;">Payslip of ${monthYear}</h2>
+                    <div style="margin: 5mm 0; font-size: 7pt;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="width: 50%; vertical-align: top; padding-right: 5mm;">
+                                    <p><strong>Employee ID:</strong> ${currentPayslip.employee_id}</p>
+                                    <p><strong>Name:</strong> ${currentPayslip.employee_name}</p>
+                                    <p><strong>Email:</strong> unknown@astrolite.com</p>
+                                    <p><strong>Designation:</strong> Employee</p>
+                                    <p><strong>Office:</strong> Hyderabad</p>
+                                </td>
+                                <td style="width: 50%; vertical-align: top;">
+                                    <p><strong>PID:</strong> ${payslipId}</p>
+                                    <p><strong>Bank:</strong> HDFC Bank</p>
+                                    <p><strong>PAN:</strong> ABCDE1234F</p>
+                                    <p><strong>Account No:</strong> 123456789012</p>
+                                    <p><strong>Status:</strong> Approved</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin: 5mm 0; font-size: 7pt;">
+                        <thead>
+                            <tr>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: left;">Earnings</th>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: right;">Amount (₹)</th>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: left;">Deductions</th>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: right;">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Basic Salary</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(currentPayslip.earnings.basicSalary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Professional Tax</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">0.00</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">House Rent Allowance</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(currentPayslip.earnings.hra).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Tax Deducted at Source</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(currentPayslip.deductions.incomeTaxDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Other Allowance</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(otherAllowance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Provident Fund</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(currentPayslip.deductions.pf).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;"></td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;"></td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Leave Without Pay</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">0.00</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;"></td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;"></td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Other Deduction</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${Number(currentPayslip.deductions.healthInsurance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; font-weight: bold;">Total Earnings</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right; font-weight: bold;">${totalEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; font-weight: bold;">Total Deductions</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right; font-weight: bold;">${totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="background-color: #f8f9fa; padding: 3mm; border-radius: 2mm; margin-top: 3mm;">
+                        <p style="font-weight: bold; font-size: 9pt; text-align: right; margin: 0;">Net Salary: ₹${netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                        <p style="text-align: right; font-size: 7pt; margin: 1mm 0 0; text-transform: capitalize;">(${netSalaryWords})</p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin: 5mm 0; font-size: 7pt;">
+                        <thead>
+                            <tr>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: left;">Description</th>
+                                <th style="border: 0.2mm solid #ddd; padding: 2mm; background-color: #f8f9fa; text-align: right;">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Total Earnings (a)</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${totalEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm;">Total Deductions (b)</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right;">${totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; font-weight: bold;">Net Pay (a-b)</td>
+                                <td style="border: 0.2mm solid #ddd; padding: 2mm; text-align: right; font-weight: bold;">${netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="text-align: center; color: #333; font-size: 7pt; margin-top: 5mm;">
+                        <p style="margin: 0;">This is an auto-generated payslip. If you have doubts about the content of this payslip, contact Astrolite Tech Solutions HR.</p>
+                        <p style="margin: 1mm 0 0;">Astrolite Tech Solutions Pvt Ltd</p>
+                    </div>
+                    <div style="text-align: right; font-size: 6pt; color: #777; margin-top: 5mm;">
+                        <p>Generated on: ${new Date().toLocaleString('en-IN')}</p>
+                    </div>
+                `;
+                document.body.appendChild(docContent);
 
-                doc.setDrawColor(67, 97, 238);
-                doc.setLineWidth(0.5);
-                doc.line(20, 35, 190, 35);
+                try {
+                    const canvas = await html2canvas(docContent, {
+                        scale: 2,
+                        logging: true,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 210; // A4 width in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-                doc.setFontSize(14);
-                doc.setTextColor(67, 97, 238);
-                doc.text('Employee Details', 20, 45);
-
-                doc.setFontSize(12);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`Name: ${currentPayslip.employee_name}`, 20, 55);
-                doc.text(`Employee ID: ${currentPayslip.employee_id}`, 20, 65);
-                doc.text(`Department: ${currentPayslip.department}`, 20, 75);
-
-                doc.setFontSize(14);
-                doc.setTextColor(67, 97, 238);
-                doc.text('Earnings', 20, 90);
-
-                const earningsData = [
-                    ['Basic Salary', `₹${currentPayslip.earnings.basicSalary.toFixed(2)}`],
-                    ['HRA', `₹${currentPayslip.earnings.hra.toFixed(2)}`],
-                    ['Special Allowance', `₹${currentPayslip.earnings.specialAllowance.toFixed(2)}`],
-                    ['Bonus', `₹${currentPayslip.earnings.bonus.toFixed(2)}`]
-                ];
-
-                doc.autoTable({
-                    startY: 95,
-                    head: [['Description', 'Amount']],
-                    body: earningsData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [67, 97, 238],
-                        textColor: [255, 255, 255]
-                    },
-                    margin: { left: 20 }
-                });
-
-                doc.setFontSize(14);
-                doc.setTextColor(67, 97, 238);
-                doc.text('Deductions', 20, doc.autoTable.previous.finalY + 15);
-
-                const deductionsData = [
-                    ['Income Tax', `₹${currentPayslip.deductions.incomeTaxDeduction.toFixed(2)}`],
-                    ['Provident Fund', `₹${currentPayslip.deductions.pf.toFixed(2)}`],
-                    ['Health Insurance', `₹${currentPayslip.deductions.healthInsurance.toFixed(2)}`]
-                ];
-
-                doc.autoTable({
-                    startY: doc.autoTable.previous.finalY + 20,
-                    head: [['Description', 'Amount']],
-                    body: deductionsData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [67, 97, 238],
-                        textColor: [255, 255, 255]
-                    },
-                    margin: { left: 20 }
-                });
-
-                doc.setFontSize(14);
-                doc.setTextColor(67, 97, 238);
-                doc.text('Summary', 20, doc.autoTable.previous.finalY + 15);
-
-                const summaryData = [
-                    ['Total Earnings', `₹${currentPayslip.totals.totalEarnings.toFixed(2)}`],
-                    ['Total Deductions', `₹${currentPayslip.totals.totalDeductions.toFixed(2)}`],
-                    ['Net Pay', `₹${currentPayslip.totals.netPay.toFixed(2)}`]
-                ];
-
-                doc.autoTable({
-                    startY: doc.autoTable.previous.finalY + 20,
-                    body: summaryData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [67, 97, 238],
-                        textColor: [255, 255, 255]
-                    },
-                    margin: { left: 20 },
-                    styles: {
-                        fontSize: 12,
-                        cellPadding: 6,
-                        fillColor: [255, 255, 255]
-                    },
-                    columnStyles: {
-                        0: { fontStyle: 'bold' },
-                        1: { fontStyle: 'bold', halign: 'right' }
+                    if (imgHeight > 297) {
+                        console.warn(`Content height (${imgHeight}mm) exceeds A4 page (297mm). Content may be truncated.`);
                     }
-                });
 
-                doc.setFontSize(10);
-                doc.setTextColor(100, 100, 100);
-                doc.text('This is a computer generated payslip. No signature required.', 105, doc.autoTable.previous.finalY + 15, { align: 'center' });
-                doc.text(`Generated on: ${new Date().toLocaleString()}`, 105, doc.autoTable.previous.finalY + 20, { align: 'center' });
-
-                doc.save(`Payslip_${currentPayslip.employee_id}_${monthYear.replace(' ', '_')}.pdf`);
+                    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                    pdf.save(`Payslip_${payslipId}.pdf`);
+                } catch (err) {
+                    alert(`PDF generation failed: ${err.message}`);
+                } finally {
+                    document.body.removeChild(docContent);
+                }
             }
 
             payslipForm.addEventListener("submit", async function (e) {
