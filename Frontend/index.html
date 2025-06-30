@@ -724,7 +724,7 @@ function displayPayslip(payslip) {
         const monthValue = monthInput.value;
 
         try {
-            const response = await fetch(`http://localhost:3000/api/payslips/${empId}/${monthValue}`);
+            const response = await fetch(`http://16.170.201.139:3070/api/payslips/${empId}/${monthValue}`);
             if (!response.ok) {
                 throw new Error('Payslip not found');
             }
