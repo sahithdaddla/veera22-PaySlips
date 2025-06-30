@@ -820,7 +820,7 @@
             }
 
             try {
-                let url = 'http://localhost:3000/api/payslips?';
+                let url = 'http://16.170.201.139:3070/api/payslips?';
                 if (department) url += `department=${encodeURIComponent(department)}&`;
                 if (month) url += `month=${encodeURIComponent(month)}`;
                 
@@ -1037,8 +1037,8 @@
 
             try {
                 const url = department ? 
-                    `http://localhost:3000/api/pf-records/${month}?department=${encodeURIComponent(department)}` : 
-                    `http://localhost:3000/api/pf-records/${month}`;
+                    `http://16.170.201.139:3070/api/pf-records/${month}?department=${encodeURIComponent(department)}` : 
+                    `http://16.170.201.139:3070/api/pf-records/${month}`;
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch PF records: ${response.statusText}`);
@@ -1124,8 +1124,8 @@
 
             try {
                 const url = department ? 
-                    `http://localhost:3000/api/esic-records/${month}?department=${encodeURIComponent(department)}` : 
-                    `http://localhost:3000/api/esic-records/${month}`;
+                    `http://16.170.201.139:3070/api/esic-records/${month}?department=${encodeURIComponent(department)}` : 
+                    `http://16.170.201.139:3070/api/esic-records/${month}`;
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch ESIC records: ${response.statusText}`);
@@ -1211,8 +1211,8 @@
 
             try {
                 const url = department ? 
-                    `http://localhost:3000/api/tax-records/${month}?department=${encodeURIComponent(department)}` : 
-                    `http://localhost:3000/api/tax-records/${month}`;
+                    `http://16.170.201.139:3070/api/tax-records/${month}?department=${encodeURIComponent(department)}` : 
+                    `http://16.170.201.139:3070/api/tax-records/${month}`;
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch tax records: ${response.statusText}`);
